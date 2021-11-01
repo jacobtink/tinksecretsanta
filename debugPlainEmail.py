@@ -1,38 +1,59 @@
 import smtplib, ssl, csv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-port = 1025
-smtp_server = "localhost"
-sender_email = "my@gmail.com"
-receiver_email = "testing@gmail.com"
+sender_email = "secretsanta.tink@gmail.com"
+#receiver_email = "your@gmail.com"
+password = input("Type your password and press enter:")
 
-message = """\
-Subject: Hi there {name}
+message = MIMEMultipart("alternative")
+message["Subject"] = "Your Secret Santa"
+message["From"] = sender_email
 
-This message is sent from Python to {email}. You are {secret}'s secret santa!"""
+# Create the plain-text and HTML version of your message
 
-#password = input("Enter password: ")
+text = """\
+Hi there {name}
+This message is sent from Python to {email}. You are {secret}'s secret santa!
+This should be the plaintext-version"""
 
-#context = ssl.create_default_context()
-
-print("trying to connect")
-
-with open("contacts_file.csv") as file:
-	reader = csv.reader(file)
-	next(reader) # skip header row
-	for name, email, secret in reader:
-		print(f"Sending email to {name}")
-		try:
-			server = smtplib.SMTP(smtp_server, port)
-			server.ehlo()		
-			server.sendmail(sender_email, email, message.format(name=name, email=email, secret=secret))
-		except Exception as e:
-			print(e)
-		finally:
-			server.quit()
-
+text = """\
+Hi,
+How are you?
+Real Python has many great tutorials:
+www.realpython.com"""
+html = """\
+<html>
+  <body>
+    <p>Hi there {name}<br>
+       This message is sent from Python to {email}. You are {secret}'s secret santa!<br>
+       This should be the html-version
+    </p>
+  </body>
+</html>
 """
-with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
-	print("connected to server")
-	#server.login(sender_email, password)
-	server.sendmail(sender_email, receiver_email, message)
-"""
+
+# Turn these into plain/html MIMEText objects
+part1 = MIMEText(text, "plain")
+part2 = MIMEText(html, "html")
+
+# Add HTML/plain-text parts to MIMEMultipart message
+# The email client will try to render the last part first
+message.attach(part1)
+message.attach(part2)
+
+context = ssl.create_default_context()
+with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+    server.login(sender_email, password)
+    with open("contacts_file.csv") as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header row
+        for name, email, secret in reader:
+            
+            message["To"] = email
+            
+            server.sendmail(
+                sender_email,
+                email,
+                message.as_string().format(name=name, email=email, secret=secret),
+            )
